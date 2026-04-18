@@ -12,6 +12,14 @@ Player.CharacterAdded:Connect(function(c)
     Character = c
 end)
 
+-- // VERIFICA SE O JOGO COMEÇOU
+local JogoComecou = false
+workspace.ChildAdded:Connect(function(child)
+    if child.Name == "RoundSystem" or child.Name:find("Round") then
+        JogoComecou = true
+    end
+end)
+
 -- // GUI
 local Gui = Instance.new("ScreenGui")
 Gui.Name = "MG_HUB"
@@ -122,26 +130,34 @@ local ESP_M = false
 local ESP_S = false
 local ESP_P = false
 
--- // ROLE
+-- // ROLE (DETECTA CERTINHO)
 local function GetRole(plr)
     if not plr.Character then return "Player" end
 
-    if plr:FindFirstChild("Backpack") then
-        for _,v in pairs(plr.Backpack:GetChildren()) do
-            if v.Name:lower():find("knife") or v.Name:lower():find("murder") then return "Murder" end
-            if v.Name:lower():find("gun") or v.Name:lower():find("revolver") then return "Sheriff" end
+    -- Verifica se tem arma na mão
+    local ferramenta = plr.Character:FindFirstChildOfClass("Tool")
+
+    if ferramenta then
+        if ferramenta.Name:lower():find("knife") or ferramenta.Name:lower():find("murder") then 
+            return "Murder" 
+        end
+        if ferramenta.Name:lower():find("gun") or ferramenta.Name:lower():find("revolver") or ferramenta.Name:lower():find("sheriff") then 
+            return "Sheriff" 
         end
     end
 
-    for _,v in pairs(plr.Character:GetChildren()) do
-        if v.Name:lower():find("knife") or v.Name:lower():find("murder") then return "Murder" end
-        if v.Name:lower():find("gun") or v.Name:lower():find("revolver") then return "Sheriff" end
+    -- Verifica na mochila
+    if plr:FindFirstChild("Backpack") then
+        for _,v in pairs(plr.Backpack:GetChildren()) do
+            if v.Name:lower():find("knife") or v.Name:lower():find("murder") then return "Murder" end
+            if v.Name:lower():find("gun") or v.Name:lower():find("revolver") or v.Name:lower():find("sheriff") then return "Sheriff" end
+        end
     end
 
     return "Player"
 end
 
--- // SET ESP (CORREÇÃO FINAL)
+-- // SET ESP
 local function SetESP(plr, color)
     if plr == Player or not plr.Character then return end
 
@@ -179,8 +195,11 @@ Rodape.TextColor3 = Color3.fromRGB(255,0,0)
 Rodape.TextSize = 14
 Rodape.AutoLocalize = false
 
--- // LOOP PRINCIPAL (100% SEGURO)
+-- // LOOP PRINCIPAL
 RunService.RenderStepped:Connect(function()
+
+    -- SÓ FUNCIONA DEPOIS QUE COMEÇAR
+    if not JogoComecou then return end
 
     for _,plr in pairs(Players:GetPlayers()) do
         if plr ~= Player then
@@ -203,7 +222,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- AIMBOT (VERIFICAÇÃO TOTAL)
+    -- AIMBOT SÓ NO MURDER COM ARMA NA MÃO
     if AIMBOT 
     and Character 
     and Character:FindFirstChild("Head") 
@@ -217,7 +236,9 @@ RunService.RenderStepped:Connect(function()
             and plr.Character:FindFirstChild("Head") 
             and plr.Character:FindFirstChild("HumanoidRootPart") then
 
-                if GetRole(plr) == "Murder" then
+                -- SÓ MIRA SE ELE FOR MURDER E TIVER A ARMA NA MÃO
+                local ferramenta = plr.Character:FindFirstChildOfClass("Tool")
+                if GetRole(plr) == "Murder" and ferramenta and ferramenta.Parent == plr.Character then
                     local mag = (Character.HumanoidRootPart.Position - plr.Character.HumanoidRootPart.Position).Magnitude
                     if mag < dist then
                         dist = mag
@@ -240,4 +261,4 @@ RunService.RenderStepped:Connect(function()
 
 end)
 
-print("✅ MG HUB - VERSÃO FINAL 100% CORRIGIDA")
+print("✅ MG HUB - VERSÃO FINAL DEFINITIVA")
