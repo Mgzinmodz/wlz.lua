@@ -1,8 +1,13 @@
+-- // PROTEÇÃO CONTRA EXECUÇÃO DUPLICADA
+if getgenv().MG_HUB_LOADED then return end
+getgenv().MG_HUB_LOADED = true
+
 -- // SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
 
 local Player = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -12,24 +17,20 @@ Player.CharacterAdded:Connect(function(c)
     Character = c
 end)
 
--- // VERIFICA SE A PARTIDA COMEÇOU (IGNORA LOBBY)
+-- // VERIFICAÇÃO DO JOGO (OTIMIZADA)
 local JogoAtivo = false
-
--- Espera o round começar (funciona na maioria dos servidores)
-spawn(function()
-    while wait(1) do
+coroutine.wrap(function()
+    while task.wait(0.1) do
+        JogoAtivo = false
         if workspace:FindFirstChild("Running") and workspace.Running.Value == true then
             JogoAtivo = true
         elseif workspace:FindFirstChild("RoundInProgress") and workspace.RoundInProgress.Value == true then
             JogoAtivo = true
         elseif workspace:FindFirstChild("GameStarted") and workspace.GameStarted.Value == true then
             JogoAtivo = true
-        else
-            -- Se não encontrar essas pastas, tenta ver se tem NPCs ou se o mapa mudou
-            JogoAtivo = false
         end
     end
-end)
+end)()
 
 -- // GUI
 local Gui = Instance.new("ScreenGui")
@@ -70,24 +71,23 @@ local strokeMenu = Instance.new("UIStroke", Menu)
 strokeMenu.Color = Color3.fromRGB(255,0,0)
 strokeMenu.Thickness = 1.5
 
--- // ARRASTAR (FUNCIONA CELULAR E PC)
+-- // ARRASTAR (CORRIGIDO PARA CELULAR)
 local function Dragify(obj)
     local dragging = false
-    local startPos, startMouse = nil, nil
-    obj.Active = true
-    obj.Draggable = false -- Usando nosso sistema proprio
-
+    local startPos, startInput = nil, nil
+    
     obj.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
-            startMouse = input.Position
+            startInput = input.Position
             startPos = obj.Position
+            input.Process = true
         end
     end)
 
     UIS.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - startMouse
+            local delta = input.Position - startInput
             obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
@@ -103,7 +103,7 @@ Dragify(Btn)
 Dragify(Menu)
 
 -- // ABRIR MENU
-Btn.MouseButton1Click:Connect(function()
+Btn.Activated:Connect(function()
     Menu.Visible = not Menu.Visible
 end)
 
@@ -123,7 +123,7 @@ local function AddBtn(txt, func)
     Instance.new("UICorner", b).CornerRadius = UDim.new(0,6)
 
     local ligado = false
-    b.MouseButton1Click:Connect(function()
+    b.Activated:Connect(function()
         ligado = not ligado
         b.BackgroundColor3 = ligado and Color3.fromRGB(255,0,0) or Color3.fromRGB(40,40,40)
         b.TextColor3 = ligado and Color3.new(0,0,0) or Color3.new(1,1,1)
@@ -139,11 +139,10 @@ local ESP_M = false
 local ESP_S = false
 local ESP_P = false
 
--- // DETECTAR FUNÇÃO (100% CERTO)
+-- // DETECTAR FUNÇÃO
 local function GetRole(plr)
     if not plr.Character then return "Inocente" end
 
-    -- Verifica na mão primeiro
     local tool = plr.Character:FindFirstChildOfClass("Tool")
     if tool then
         local nome = tool.Name:lower()
@@ -151,7 +150,6 @@ local function GetRole(plr)
         if nome:find("gun") or nome:find("revolver") or nome:find("sheriff") or nome:find("pistol") then return "Sheriff" end
     end
 
-    -- Verifica na mochila
     if plr:FindFirstChild("Backpack") then
         for _, item in pairs(plr.Backpack:GetChildren()) do
             local nome = item.Name:lower()
@@ -163,24 +161,32 @@ local function GetRole(plr)
     return "Inocente"
 end
 
--- // CRIAR ESP (O SEGREDO ESTÁ AQUI)
+-- // CRIAR ESP (VER ATRAVÉS DE PAREDE)
 local function CriarESP(plr, cor)
     if plr == Player or not plr.Character then return end
 
-    -- Se já existir, só atualiza
-    local hl = plr.Character:FindFirstChild("MG_ESP_EFFECT")
-    if not hl then
-        hl = Instance.new("Highlight")
-        hl.Name = "MG_ESP_EFFECT"
-        hl.Parent = plr.Character
-        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- VÊ ATRAVÉS DE PAREDE
-    end
+    -- Limpa se existir
+    local old = plr.Character:FindFirstChild("MG_ESP")
+    if old then old:Destroy() end
 
+    local hl = Instance.new("Highlight")
+    hl.Name = "MG_ESP"
+    hl.Parent = plr.Character
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.FillTransparency = 0.5
+    hl.OutlineTransparency = 0
+    hl.LineThickness = 2
+    hl.Adornee = plr.Character
     hl.FillColor = cor
     hl.OutlineColor = cor
-    hl.FillTransparency = 0.6
-    hl.OutlineTransparency = 0
-    hl.Enabled = true
+end
+
+-- // REMOVER ESP
+local function RemoverESP(plr)
+    if plr.Character then
+        local hl = plr.Character:FindFirstChild("MG_ESP")
+        if hl then hl:Destroy() end
+    end
 end
 
 -- // BOTÕES
@@ -196,15 +202,13 @@ Rodape.BackgroundTransparency = 1
 Rodape.Size = UDim2.new(1, 0, 0, 30)
 Rodape.Position = UDim2.new(0, 0, 1, -30)
 Rodape.Font = Enum.Font.GothamBold
-Rodape.Text = "MG HUB | 100% FUNCIONAL"
+Rodape.Text = "MG HUB | OTIMIZADO"
 Rodape.TextColor3 = Color3.fromRGB(255,0,0)
 Rodape.TextSize = 13
 Rodape.AutoLocalize = false
 
--- // LOOP PRINCIPAL
-RunService.RenderStepped:Connect(function()
-
-    -- SÓ RODA SE O JOGO TIVER ATIVO
+-- // LOOP PRINCIPAL (OTIMIZADO)
+RunService.Heartbeat:Connect(function()
     if not JogoAtivo then return end
 
     -- ==============================================
@@ -221,9 +225,7 @@ RunService.RenderStepped:Connect(function()
             elseif cargo == "Inocente" and ESP_P then
                 CriarESP(plr, Color3.fromRGB(0, 255, 0))
             else
-                -- DESLIGA SE NÃO FOR PRA MOSTRAR
-                local hl = plr.Character:FindFirstChild("MG_ESP_EFFECT")
-                if hl then hl.Enabled = false end
+                RemoverESP(plr)
             end
         end
     end
@@ -231,16 +233,15 @@ RunService.RenderStepped:Connect(function()
     -- ==============================================
     -- // AIMBOT SYSTEM
     -- ==============================================
-    if AIMBOT and Character and Character:FindFirstChild("Head") then
+    if AIMBOT and Character and Character:FindFirstChild("Head") and Character:FindFirstChild("HumanoidRootPart") then
         local alvo = nil
         local distancia = math.huge
 
         for _, plr in pairs(Players:GetPlayers()) do
-            if plr ~= Player and plr.Character and plr.Character:FindFirstChild("Head") then
+            if plr ~= Player and plr.Character and plr.Character:FindFirstChild("Head") and plr.Character:FindFirstChild("HumanoidRootPart") then
                 local cargo = GetRole(plr)
                 local tool = plr.Character:FindFirstChildOfClass("Tool")
 
-                -- SÓ MIRA SE FOR MURDER E TIVER ARMA NA MÃO
                 if cargo == "Murder" and tool and tool.Parent == plr.Character then
                     local dist = (Character.Head.Position - plr.Character.Head.Position).Magnitude
                     if dist < distancia then
@@ -251,7 +252,6 @@ RunService.RenderStepped:Connect(function()
             end
         end
 
-        -- SE ACHAR O ALVO, MIRA
         if alvo and alvo.Character and alvo.Character:FindFirstChild("Head") then
             Camera.CFrame = Camera.CFrame:Lerp(
                 CFrame.new(Camera.CFrame.Position, alvo.Character.Head.Position),
@@ -262,4 +262,4 @@ RunService.RenderStepped:Connect(function()
 
 end)
 
-print("✅ MG HUB CARREGADO - VERSÃO FINAL 100%")
+print("✅ MG HUB CARREGADO - VERSÃO SEM ERROS")
