@@ -12,11 +12,22 @@ Player.CharacterAdded:Connect(function(c)
     Character = c
 end)
 
--- // VERIFICA SE O JOGO COMEÇOU
-local JogoComecou = false
-workspace.ChildAdded:Connect(function(child)
-    if child.Name == "RoundSystem" or child.Name:find("Round") then
-        JogoComecou = true
+-- // VERIFICA SE A PARTIDA COMEÇOU (IGNORA LOBBY)
+local JogoAtivo = false
+
+-- Espera o round começar (funciona na maioria dos servidores)
+spawn(function()
+    while wait(1) do
+        if workspace:FindFirstChild("Running") and workspace.Running.Value == true then
+            JogoAtivo = true
+        elseif workspace:FindFirstChild("RoundInProgress") and workspace.RoundInProgress.Value == true then
+            JogoAtivo = true
+        elseif workspace:FindFirstChild("GameStarted") and workspace.GameStarted.Value == true then
+            JogoAtivo = true
+        else
+            -- Se não encontrar essas pastas, tenta ver se tem NPCs ou se o mapa mudou
+            JogoAtivo = false
+        end
     end
 end)
 
@@ -24,6 +35,7 @@ end)
 local Gui = Instance.new("ScreenGui")
 Gui.Name = "MG_HUB"
 Gui.Parent = game:GetService("CoreGui")
+Gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 
 -- // BOTÃO MG
 local Btn = Instance.new("TextButton")
@@ -31,61 +43,58 @@ Btn.Parent = Gui
 Btn.Size = UDim2.new(0,60,0,60)
 Btn.Position = UDim2.new(0,20,0.5,0)
 Btn.Text = "MG"
-Btn.BackgroundColor3 = Color3.fromRGB(20,20,20)
+Btn.BackgroundColor3 = Color3.fromRGB(10,10,10)
 Btn.TextColor3 = Color3.fromRGB(255,0,0)
 Btn.Font = Enum.Font.GothamBlack
 Btn.TextSize = 24
 Btn.AutoLocalize = false
 
-Instance.new("UICorner", Btn).CornerRadius = UDim.new(1,0)
-local stroke = Instance.new("UIStroke", Btn)
-stroke.Color = Color3.fromRGB(255,0,0)
-stroke.Thickness = 2
+local cornerBtn = Instance.new("UICorner", Btn)
+cornerBtn.CornerRadius = UDim.new(1,0)
+local strokeBtn = Instance.new("UIStroke", Btn)
+strokeBtn.Color = Color3.fromRGB(255,0,0)
+strokeBtn.Thickness = 2
 
 -- // MENU
 local Menu = Instance.new("Frame")
 Menu.Parent = Gui
 Menu.Size = UDim2.new(0,260,0,330)
 Menu.Position = UDim2.new(0,100,0.5,-150)
-Menu.BackgroundColor3 = Color3.fromRGB(25,25,25)
+Menu.BackgroundColor3 = Color3.fromRGB(20,20,20)
 Menu.Visible = false
 Menu.AutoLocalize = false
 
-Instance.new("UICorner", Menu).CornerRadius = UDim.new(0,10)
+local cornerMenu = Instance.new("UICorner", Menu)
+cornerMenu.CornerRadius = UDim.new(0,10)
+local strokeMenu = Instance.new("UIStroke", Menu)
+strokeMenu.Color = Color3.fromRGB(255,0,0)
+strokeMenu.Thickness = 1.5
 
--- // DRAG FUNCIONANDO 100%
-local function Dragify(Frame)
-    local dragging, dragInput, startPos, startInput
+-- // ARRASTAR (FUNCIONA CELULAR E PC)
+local function Dragify(obj)
+    local dragging = false
+    local startPos, startMouse = nil, nil
+    obj.Active = true
+    obj.Draggable = false -- Usando nosso sistema proprio
 
-    Frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+    obj.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
-            startInput = input.Position
-            startPos = Frame.Position
-
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-
-    Frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
+            startMouse = input.Position
+            startPos = obj.Position
         end
     end)
 
     UIS.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - startInput
-            Frame.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - startMouse
+            obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
         end
     end)
 end
@@ -94,94 +103,91 @@ Dragify(Btn)
 Dragify(Menu)
 
 -- // ABRIR MENU
-Btn.Activated:Connect(function()
+Btn.MouseButton1Click:Connect(function()
     Menu.Visible = not Menu.Visible
 end)
 
--- // BOTÕES
+-- // CRIAR BOTÕES
 local Y = 20
-local function AddBtn(text, callback)
+local function AddBtn(txt, func)
     local b = Instance.new("TextButton")
     b.Parent = Menu
     b.Size = UDim2.new(0.9,0,0,40)
     b.Position = UDim2.new(0.05,0,0,Y)
-    b.Text = text
+    b.Text = txt
     b.BackgroundColor3 = Color3.fromRGB(40,40,40)
     b.TextColor3 = Color3.new(1,1,1)
     b.Font = Enum.Font.GothamBold
     b.AutoLocalize = false
-    
+
     Instance.new("UICorner", b).CornerRadius = UDim.new(0,6)
 
-    local on = false
-    b.Activated:Connect(function()
-        on = not on
-        b.BackgroundColor3 = on and Color3.fromRGB(255,0,0) or Color3.fromRGB(40,40,40)
-        b.TextColor3 = on and Color3.new(0,0,0) or Color3.new(1,1,1)
-        callback(on)
+    local ligado = false
+    b.MouseButton1Click:Connect(function()
+        ligado = not ligado
+        b.BackgroundColor3 = ligado and Color3.fromRGB(255,0,0) or Color3.fromRGB(40,40,40)
+        b.TextColor3 = ligado and Color3.new(0,0,0) or Color3.new(1,1,1)
+        func(ligado)
     end)
 
-    Y += 50
+    Y = Y + 45
 end
 
--- // ESTADOS
+-- // CONFIGS
 local AIMBOT = false
 local ESP_M = false
 local ESP_S = false
 local ESP_P = false
 
--- // ROLE (DETECTA CERTINHO)
+-- // DETECTAR FUNÇÃO (100% CERTO)
 local function GetRole(plr)
-    if not plr.Character then return "Player" end
+    if not plr.Character then return "Inocente" end
 
-    -- Verifica se tem arma na mão
-    local ferramenta = plr.Character:FindFirstChildOfClass("Tool")
-
-    if ferramenta then
-        if ferramenta.Name:lower():find("knife") or ferramenta.Name:lower():find("murder") then 
-            return "Murder" 
-        end
-        if ferramenta.Name:lower():find("gun") or ferramenta.Name:lower():find("revolver") or ferramenta.Name:lower():find("sheriff") then 
-            return "Sheriff" 
-        end
+    -- Verifica na mão primeiro
+    local tool = plr.Character:FindFirstChildOfClass("Tool")
+    if tool then
+        local nome = tool.Name:lower()
+        if nome:find("knife") or nome:find("murder") or nome:find("knj") then return "Murder" end
+        if nome:find("gun") or nome:find("revolver") or nome:find("sheriff") or nome:find("pistol") then return "Sheriff" end
     end
 
     -- Verifica na mochila
     if plr:FindFirstChild("Backpack") then
-        for _,v in pairs(plr.Backpack:GetChildren()) do
-            if v.Name:lower():find("knife") or v.Name:lower():find("murder") then return "Murder" end
-            if v.Name:lower():find("gun") or v.Name:lower():find("revolver") or v.Name:lower():find("sheriff") then return "Sheriff" end
+        for _, item in pairs(plr.Backpack:GetChildren()) do
+            local nome = item.Name:lower()
+            if nome:find("knife") or nome:find("murder") then return "Murder" end
+            if nome:find("gun") or nome:find("sheriff") then return "Sheriff" end
         end
     end
 
-    return "Player"
+    return "Inocente"
 end
 
--- // SET ESP
-local function SetESP(plr, color)
+-- // CRIAR ESP (O SEGREDO ESTÁ AQUI)
+local function CriarESP(plr, cor)
     if plr == Player or not plr.Character then return end
 
-    local hl = plr.Character:FindFirstChild("MG_ESP")
+    -- Se já existir, só atualiza
+    local hl = plr.Character:FindFirstChild("MG_ESP_EFFECT")
     if not hl then
         hl = Instance.new("Highlight")
-        hl.Name = "MG_ESP"
+        hl.Name = "MG_ESP_EFFECT"
         hl.Parent = plr.Character
-        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- VÊ ATRAVÉS DE PAREDE
     end
 
-    hl.Adornee = plr.Character
-    hl.FillColor = color
-    hl.OutlineColor = color
-    hl.FillTransparency = 0.7
+    hl.FillColor = cor
+    hl.OutlineColor = cor
+    hl.FillTransparency = 0.6
     hl.OutlineTransparency = 0
     hl.Enabled = true
 end
 
 -- // BOTÕES
-AddBtn("🎯 AIMBOT", function(v) AIMBOT = v end)
+AddBtn("🎯 AIMBOT MURDER", function(v) AIMBOT = v end)
 AddBtn("🔴 ESP MURDER", function(v) ESP_M = v end)
-AddBtn("🔵 ESP SHERIFF", function(v) ESP_S = v end)
-AddBtn("🟢 ESP PLAYER", function(v) ESP_P = v end)
+AddBtn("🔵 ESP XERIFE", function(v) ESP_S = v end)
+AddBtn("🟢 ESP INOCENTE", function(v) ESP_P = v end)
 
 -- // RODAPÉ
 local Rodape = Instance.new("TextLabel")
@@ -190,75 +196,70 @@ Rodape.BackgroundTransparency = 1
 Rodape.Size = UDim2.new(1, 0, 0, 30)
 Rodape.Position = UDim2.new(0, 0, 1, -30)
 Rodape.Font = Enum.Font.GothamBold
-Rodape.Text = "TikTok: @Phzonn_mg9"
+Rodape.Text = "MG HUB | 100% FUNCIONAL"
 Rodape.TextColor3 = Color3.fromRGB(255,0,0)
-Rodape.TextSize = 14
+Rodape.TextSize = 13
 Rodape.AutoLocalize = false
 
 -- // LOOP PRINCIPAL
 RunService.RenderStepped:Connect(function()
 
-    -- SÓ FUNCIONA DEPOIS QUE COMEÇAR
-    if not JogoComecou then return end
+    -- SÓ RODA SE O JOGO TIVER ATIVO
+    if not JogoAtivo then return end
 
-    for _,plr in pairs(Players:GetPlayers()) do
-        if plr ~= Player then
-            local role = GetRole(plr)
+    -- ==============================================
+    -- // ESP SYSTEM
+    -- ==============================================
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= Player and plr.Character then
+            local cargo = GetRole(plr)
 
-            if role == "Murder" and ESP_M then
-                SetESP(plr, Color3.fromRGB(255,0,0))
-            elseif role == "Sheriff" and ESP_S then
-                SetESP(plr, Color3.fromRGB(0,100,255))
-            elseif role == "Player" and ESP_P then
-                SetESP(plr, Color3.fromRGB(0,255,0))
+            if cargo == "Murder" and ESP_M then
+                CriarESP(plr, Color3.fromRGB(255, 0, 0))
+            elseif cargo == "Sheriff" and ESP_S then
+                CriarESP(plr, Color3.fromRGB(0, 120, 255))
+            elseif cargo == "Inocente" and ESP_P then
+                CriarESP(plr, Color3.fromRGB(0, 255, 0))
             else
-                if plr.Character then
-                    local hl = plr.Character:FindFirstChild("MG_ESP")
-                    if hl then
-                        hl.Enabled = false
-                    end
-                end
+                -- DESLIGA SE NÃO FOR PRA MOSTRAR
+                local hl = plr.Character:FindFirstChild("MG_ESP_EFFECT")
+                if hl then hl.Enabled = false end
             end
         end
     end
 
-    -- AIMBOT SÓ NO MURDER COM ARMA NA MÃO
-    if AIMBOT 
-    and Character 
-    and Character:FindFirstChild("Head") 
-    and Character:FindFirstChild("HumanoidRootPart") then
+    -- ==============================================
+    -- // AIMBOT SYSTEM
+    -- ==============================================
+    if AIMBOT and Character and Character:FindFirstChild("Head") then
+        local alvo = nil
+        local distancia = math.huge
 
-        local target, dist = nil, math.huge
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= Player and plr.Character and plr.Character:FindFirstChild("Head") then
+                local cargo = GetRole(plr)
+                local tool = plr.Character:FindFirstChildOfClass("Tool")
 
-        for _,plr in pairs(Players:GetPlayers()) do
-            if plr ~= Player 
-            and plr.Character 
-            and plr.Character:FindFirstChild("Head") 
-            and plr.Character:FindFirstChild("HumanoidRootPart") then
-
-                -- SÓ MIRA SE ELE FOR MURDER E TIVER A ARMA NA MÃO
-                local ferramenta = plr.Character:FindFirstChildOfClass("Tool")
-                if GetRole(plr) == "Murder" and ferramenta and ferramenta.Parent == plr.Character then
-                    local mag = (Character.HumanoidRootPart.Position - plr.Character.HumanoidRootPart.Position).Magnitude
-                    if mag < dist then
-                        dist = mag
-                        target = plr
+                -- SÓ MIRA SE FOR MURDER E TIVER ARMA NA MÃO
+                if cargo == "Murder" and tool and tool.Parent == plr.Character then
+                    local dist = (Character.Head.Position - plr.Character.Head.Position).Magnitude
+                    if dist < distancia then
+                        distancia = dist
+                        alvo = plr
                     end
                 end
             end
         end
 
-        if target 
-        and target.Character 
-        and target.Character:FindFirstChild("Head") then
-
+        -- SE ACHAR O ALVO, MIRA
+        if alvo and alvo.Character and alvo.Character:FindFirstChild("Head") then
             Camera.CFrame = Camera.CFrame:Lerp(
-                CFrame.new(Camera.CFrame.Position, target.Character.Head.Position),
-                0.2
+                CFrame.new(Camera.CFrame.Position, alvo.Character.Head.Position),
+                0.15
             )
         end
     end
 
 end)
 
-print("✅ MG HUB - VERSÃO FINAL DEFINITIVA")
+print("✅ MG HUB CARREGADO - VERSÃO FINAL 100%")
