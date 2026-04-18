@@ -1,4 +1,4 @@
--- // PROTEÇÃO CONTRA EXECUÇÃO DUPLICADA
+-- // PROTEÇÃO
 if getgenv().MG_HUB_LOADED then return end
 getgenv().MG_HUB_LOADED = true
 
@@ -7,24 +7,29 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
-local TweenService = game:GetService("TweenService")
+local ContextActionService = game:GetService("ContextActionService")
 
 local Player = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
-local Character = Player.Character or Player.CharacterAdded:Wait()
+local Mouse = Player:GetMouse() -- Para o Shoot
 
+local function GetCharacter()
+    return Player.Character or Player.CharacterAdded:Wait()
+end
+
+local Character = GetCharacter()
 Player.CharacterAdded:Connect(function(c)
     Character = c
 end)
 
--- // VERIFICAÇÃO DO JOGO (OTIMIZADA)
+-- // VERIFICA SE O JOGO COMEÇOU
 local JogoAtivo = false
 coroutine.wrap(function()
-    while task.wait(0.1) do
+    while task.wait(0.3) do
         JogoAtivo = false
-        if workspace:FindFirstChild("Running") and workspace.Running.Value == true then
+        if workspace:FindFirstChild("Running") and workspace.Running.Value then
             JogoAtivo = true
-        elseif workspace:FindFirstChild("RoundInProgress") and workspace.RoundInProgress.Value == true then
+        elseif workspace:FindFirstChild("RoundInProgress") and workspace.RoundInProgress.Value then
             JogoAtivo = true
         elseif workspace:FindFirstChild("GameStarted") and workspace.GameStarted.Value == true then
             JogoAtivo = true
@@ -48,47 +53,49 @@ Btn.BackgroundColor3 = Color3.fromRGB(10,10,10)
 Btn.TextColor3 = Color3.fromRGB(255,0,0)
 Btn.Font = Enum.Font.GothamBlack
 Btn.TextSize = 24
-Btn.AutoLocalize = false
 
-local cornerBtn = Instance.new("UICorner", Btn)
-cornerBtn.CornerRadius = UDim.new(1,0)
-local strokeBtn = Instance.new("UIStroke", Btn)
-strokeBtn.Color = Color3.fromRGB(255,0,0)
-strokeBtn.Thickness = 2
+Instance.new("UICorner", Btn).CornerRadius = UDim.new(1,0)
+
+local stroke = Instance.new("UIStroke", Btn)
+stroke.Color = Color3.fromRGB(255,0,0)
+stroke.Thickness = 2
 
 -- // MENU
 local Menu = Instance.new("Frame")
 Menu.Parent = Gui
-Menu.Size = UDim2.new(0,260,0,330)
-Menu.Position = UDim2.new(0,100,0.5,-150)
+Menu.Size = UDim2.new(0,260,0,370) -- Aumentei um pouco para caber o botão novo
+Menu.Position = UDim2.new(0,100,0.5,-180)
 Menu.BackgroundColor3 = Color3.fromRGB(20,20,20)
 Menu.Visible = false
-Menu.AutoLocalize = false
 
-local cornerMenu = Instance.new("UICorner", Menu)
-cornerMenu.CornerRadius = UDim.new(0,10)
+Instance.new("UICorner", Menu).CornerRadius = UDim.new(0,10)
+
 local strokeMenu = Instance.new("UIStroke", Menu)
 strokeMenu.Color = Color3.fromRGB(255,0,0)
 strokeMenu.Thickness = 1.5
 
--- // ARRASTAR (CORRIGIDO PARA CELULAR)
+-- // DRAG
 local function Dragify(obj)
     local dragging = false
-    local startPos, startInput = nil, nil
-    
+    local startPos, startInput
+
     obj.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             startInput = input.Position
             startPos = obj.Position
-            input.Process = true
         end
     end)
 
     UIS.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - startInput
-            obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            obj.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
         end
     end)
 
@@ -107,8 +114,16 @@ Btn.Activated:Connect(function()
     Menu.Visible = not Menu.Visible
 end)
 
--- // CRIAR BOTÕES
+-- // CONFIGS
+local AIMBOT = false
+local ESP_M = false
+local ESP_S = false
+local ESP_P = false
+local SHOOT_MURDER = false -- NOVA FUNÇÃO
+
+-- // BOTÕES
 local Y = 20
+
 local function AddBtn(txt, func)
     local b = Instance.new("TextButton")
     b.Parent = Menu
@@ -118,7 +133,6 @@ local function AddBtn(txt, func)
     b.BackgroundColor3 = Color3.fromRGB(40,40,40)
     b.TextColor3 = Color3.new(1,1,1)
     b.Font = Enum.Font.GothamBold
-    b.AutoLocalize = false
 
     Instance.new("UICorner", b).CornerRadius = UDim.new(0,6)
 
@@ -130,14 +144,8 @@ local function AddBtn(txt, func)
         func(ligado)
     end)
 
-    Y = Y + 45
+    Y += 45
 end
-
--- // CONFIGS
-local AIMBOT = false
-local ESP_M = false
-local ESP_S = false
-local ESP_P = false
 
 -- // DETECTAR FUNÇÃO
 local function GetRole(plr)
@@ -161,59 +169,109 @@ local function GetRole(plr)
     return "Inocente"
 end
 
--- // CRIAR ESP (VER ATRAVÉS DE PAREDE)
+-- // FUNÇÃO PARA ACHAR O MURDER MAIS PERTO
+local function GetMurderAlvo()
+    local alvo = nil
+    local distancia = math.huge
+
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= Player and plr.Character and plr.Character:FindFirstChild("Head") then
+            local cargo = GetRole(plr)
+            local tool = plr.Character:FindFirstChildOfClass("Tool")
+
+            if cargo == "Murder" and tool and tool.Parent == plr.Character then
+                local dist = (Character.HumanoidRootPart.Position - plr.Character.HumanoidRootPart.Position).Magnitude
+                if dist < distancia then
+                    distancia = dist
+                    alvo = plr
+                end
+            end
+        end
+    end
+
+    return alvo
+end
+
+-- // ESP (OTIMIZADO)
 local function CriarESP(plr, cor)
     if plr == Player or not plr.Character then return end
 
-    -- Limpa se existir
-    local old = plr.Character:FindFirstChild("MG_ESP")
-    if old then old:Destroy() end
+    local hl = plr.Character:FindFirstChild("MG_ESP")
+    if not hl then
+        hl = Instance.new("Highlight")
+        hl.Name = "MG_ESP"
+        hl.Parent = plr.Character
+        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        hl.Adornee = plr.Character
+        hl.FillTransparency = 0.8
+        hl.OutlineTransparency = 0
+        hl.LineThickness = 2
+    end
 
-    local hl = Instance.new("Highlight")
-    hl.Name = "MG_ESP"
-    hl.Parent = plr.Character
-    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    hl.FillTransparency = 0.5
-    hl.OutlineTransparency = 0
-    hl.LineThickness = 2
-    hl.Adornee = plr.Character
     hl.FillColor = cor
     hl.OutlineColor = cor
+    hl.Enabled = true
+
+    local bg = plr.Character:FindFirstChild("MG_ICON")
+    if not bg then
+        bg = Instance.new("BillboardGui")
+        bg.Name = "MG_ICON"
+        bg.Parent = plr.Character
+        bg.Size = UDim2.new(0,40,0,40)
+        bg.StudsOffset = Vector3.new(0, 2.8, 0)
+        bg.AlwaysOnTop = true
+
+        local img = Instance.new("ImageLabel")
+        img.Name = "ImageLabel"
+        img.Parent = bg
+        img.Size = UDim2.new(1,0,1,0)
+        img.BackgroundTransparency = 1
+        img.Image = "rbxassetid://6011141178"
+        img.ImageColor3 = cor
+    else
+        bg.ImageLabel.ImageColor3 = cor
+        bg.Enabled = true
+    end
 end
 
 -- // REMOVER ESP
 local function RemoverESP(plr)
     if plr.Character then
-        local hl = plr.Character:FindFirstChild("MG_ESP")
-        if hl then hl:Destroy() end
+        local esp = plr.Character:FindFirstChild("MG_ESP")
+        if esp then esp.Enabled = false end
+
+        local ic = plr.Character:FindFirstChild("MG_ICON")
+        if ic then ic.Enabled = false end
     end
 end
 
--- // BOTÕES
-AddBtn("🎯 AIMBOT MURDER", function(v) AIMBOT = v end)
-AddBtn("🔴 ESP MURDER", function(v) ESP_M = v end)
-AddBtn("🔵 ESP XERIFE", function(v) ESP_S = v end)
-AddBtn("🟢 ESP INOCENTE", function(v) ESP_P = v end)
+-- // SISTEMA DE SHOOT AUTOMÁTICO
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if SHOOT_MURDER and JogoAtivo then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            local murder = GetMurderAlvo()
+            if murder and murder.Character and murder.Character:FindFirstChild("Head") then
+                -- Muda o mouse para a cabeça do murder e clica
+                Mouse.Target = murder.Character.Head
+                fireclickdetector(Mouse.TargetClicked)
+            end
+        end
+    end
+end)
 
--- // RODAPÉ
-local Rodape = Instance.new("TextLabel")
-Rodape.Parent = Menu
-Rodape.BackgroundTransparency = 1
-Rodape.Size = UDim2.new(1, 0, 0, 30)
-Rodape.Position = UDim2.new(0, 0, 1, -30)
-Rodape.Font = Enum.Font.GothamBold
-Rodape.Text = "MG HUB | OTIMIZADO"
-Rodape.TextColor3 = Color3.fromRGB(255,0,0)
-Rodape.TextSize = 13
-Rodape.AutoLocalize = false
+-- // BOTÕES FINAIS
+AddBtn("🎯 AIMBOT", function(v) AIMBOT = v end)
+AddBtn("🔫 SHOOT MURDER", function(v) SHOOT_MURDER = v end) -- NOVO BOTÃO
+AddBtn("🔴 MURDER", function(v) ESP_M = v end)
+AddBtn("🔵 SHERIFF", function(v) ESP_S = v end)
+AddBtn("🟢 INOCENTE", function(v) ESP_P = v end)
 
--- // LOOP PRINCIPAL (OTIMIZADO)
+-- // LOOP
 RunService.Heartbeat:Connect(function()
     if not JogoAtivo then return end
 
-    -- ==============================================
-    -- // ESP SYSTEM
-    -- ==============================================
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= Player and plr.Character then
             local cargo = GetRole(plr)
@@ -230,9 +288,6 @@ RunService.Heartbeat:Connect(function()
         end
     end
 
-    -- ==============================================
-    -- // AIMBOT SYSTEM
-    -- ==============================================
     if AIMBOT and Character and Character:FindFirstChild("Head") and Character:FindFirstChild("HumanoidRootPart") then
         local alvo = nil
         local distancia = math.huge
@@ -259,7 +314,6 @@ RunService.Heartbeat:Connect(function()
             )
         end
     end
-
 end)
 
-print("✅ MG HUB CARREGADO - VERSÃO SEM ERROS")
+print("✅ MG HUB - VERSÃO FINAL COM SHOOT")
