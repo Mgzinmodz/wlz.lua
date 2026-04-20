@@ -1,274 +1,228 @@
--- // PROTEÇÃO
-if getgenv().MG_HUB_LOADED then return end
-getgenv().MG_HUB_LOADED = true
+-- // FFH4X STYLE - ROBLOX SCRIPT
+-- // FEITO POR MG CHATS / DOLA
 
 -- // SERVICES
-local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
+local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
-local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
 
 local Player = Players.LocalPlayer
+local Mouse = Player:GetMouse()
 local Camera = Workspace.CurrentCamera
-local Character = Player.Character or Player.CharacterAdded:Wait()
 
-Player.CharacterAdded:Connect(function(c) Character = c end)
+-- // VARIAVEIS
+local AimbotEnabled = false
+local Fov = 500
+local AimPart = "Head"
+local AimMode = "Ao Atirar" -- Ou "Ao Olhar"
+local MouseDown = false
 
--- // VERIFICA JOGO
-local JogoAtivo = false
-coroutine.wrap(function()
-    while task.wait(0.3) do
-        JogoAtivo = false
-        if workspace:FindFirstChild("Running") and workspace.Running.Value then JogoAtivo = true end
-        if workspace:FindFirstChild("RoundInProgress") and workspace.RoundInProgress.Value then JogoAtivo = true end
-        if workspace:FindFirstChild("GameStarted") and workspace.GameStarted.Value then JogoAtivo = true end
-    end
-end)()
-
--- // GUI
+-- // CRIA A GUI
 local Gui = Instance.new("ScreenGui")
-Gui.Name = "MG_HUB"
+Gui.Name = "FFH4X_MENU"
 Gui.Parent = game:GetService("CoreGui")
 Gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 
--- // BOTÃO
-local Btn = Instance.new("TextButton")
-Btn.Parent = Gui
-Btn.Size = UDim2.new(0,60,0,60)
-Btn.Position = UDim2.new(0,20,0.5,0)
-Btn.Text = "MG"
-Btn.BackgroundColor3 = Color3.fromRGB(10,10,10)
-Btn.TextColor3 = Color3.fromRGB(255,0,0)
-Btn.Font = Enum.Font.GothamBlack
-Btn.TextSize = 24
-Instance.new("UICorner", Btn).CornerRadius = UDim.new(1,0)
-local stroke = Instance.new("UIStroke", Btn)
-stroke.Color = Color3.fromRGB(255,0,0)
-stroke.Thickness = 2
-
--- // MENU
+-- // MENU PRINCIPAL
 local Menu = Instance.new("Frame")
+Menu.Size = UDim2.new(0, 400, 0, 280)
+Menu.Position = UDim2.new(0.3, 0, 0.2, 0)
+Menu.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Menu.BorderSizePixel = 2
+Menu.BorderColor3 = Color3.fromRGB(255, 0, 0)
 Menu.Parent = Gui
-Menu.Size = UDim2.new(0,260,0,370)
-Menu.Position = UDim2.new(0,100,0.5,-180)
-Menu.BackgroundColor3 = Color3.fromRGB(20,20,20)
-Menu.Visible = false
-Instance.new("UICorner", Menu).CornerRadius = UDim.new(0,10)
-local strokeMenu = Instance.new("UIStroke", Menu)
-strokeMenu.Color = Color3.fromRGB(255,0,0)
-strokeMenu.Thickness = 1.5
 
--- // DRAG CORRIGIDO
-local function Dragify(obj)
-    local dragging = false
-    local startPos, startInput, tipoInput
+-- // TOPO
+local Top = Instance.new("Frame")
+Top.Size = UDim2.new(1, 0, 0, 30)
+Top.Position = UDim2.new(0,0,0,0)
+Top.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+Top.Parent = Menu
 
-    obj.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            tipoInput = input.UserInputType
-            startInput = input.Position
-            startPos = obj.Position
-        end
-    end)
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -20, 1, 0)
+Title.Position = UDim2.new(0,10,0,0)
+Title.BackgroundTransparency = 1
+Title.Text = "FFH4X @MGCHATS - ROBLOX MOD"
+Title.TextColor3 = Color3.new(1,1,1)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.Parent = Top
 
-    UIS.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == tipoInput then
-            local delta = input.Position - startInput
-            obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
+-- // BOTÃO AIMBOT RAGE
+local CheckAim = Instance.new("TextButton")
+CheckAim.Size = UDim2.new(0, 25, 0, 25)
+CheckAim.Position = UDim2.new(0.05, 0, 0.15, 0)
+CheckAim.BackgroundColor3 = Color3.fromRGB(40,40,40)
+CheckAim.Text = "✅"
+CheckAim.TextColor3 = Color3.new(0,0,0)
+CheckAim.Parent = Menu
 
-    UIS.InputEnded:Connect(function(input)
-        if input.UserInputType == tipoInput then
-            dragging = false
-        end
-    end)
-end
-Dragify(Btn)
-Dragify(Menu)
+local TextAim = Instance.new("TextLabel")
+TextAim.Size = UDim2.new(0, 150, 0, 25)
+TextAim.Position = UDim2.new(0.15, 0, 0.15, 0)
+TextAim.BackgroundTransparency = 1
+TextAim.Text = "Aimbot Rage"
+TextAim.TextColor3 = Color3.new(1,1,1)
+TextAim.Font = Enum.Font.GothamBold
+TextAim.TextSize = 16
+TextAim.Parent = Menu
 
-Btn.Activated:Connect(function() Menu.Visible = not Menu.Visible end)
+-- // BARRA FOV
+local FovBar = Instance.new("Frame")
+FovBar.Size = UDim2.new(0.6, 0, 0, 10)
+FovBar.Position = UDim2.new(0.2, 0, 0.30, 0)
+FovBar.BackgroundColor3 = Color3.fromRGB(50,50,50)
+FovBar.Parent = Menu
 
--- // CONFIGS
-local AIMBOT = false
-local ESP_M = false
-local ESP_S = false
-local ESP_P = false
-local SHOOT_MURDER = false
+local FovFill = Instance.new("Frame")
+FovFill.Size = UDim2.new(0.5, 0, 1, 0)
+FovFill.BackgroundColor3 = Color3.fromRGB(255,0,0)
+FovFill.Parent = FovBar
 
--- // BOTÕES
-local Y = 20
-local function AddBtn(txt, func)
-    local b = Instance.new("TextButton")
-    b.Parent = Menu
-    b.Size = UDim2.new(0.9,0,0,40)
-    b.Position = UDim2.new(0.05,0,0,Y)
-    b.Text = txt
-    b.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    b.TextColor3 = Color3.new(1,1,1)
-    b.Font = Enum.Font.GothamBold
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0,6)
-    local ligado = false
-    b.Activated:Connect(function()
-        ligado = not ligado
-        b.BackgroundColor3 = ligado and Color3.fromRGB(255,0,0) or Color3.fromRGB(40,40,40)
-        b.TextColor3 = ligado and Color3.new(0,0,0) or Color3.new(1,1,1)
-        func(ligado)
-    end)
-    Y = Y + 45
-end
+local FovText = Instance.new("TextLabel")
+FovText.Size = UDim2.new(0, 100, 0, 20)
+FovText.Position = UDim2.new(0.82, 0, 0.27, 0)
+FovText.BackgroundTransparency = 1
+FovText.Text = "Aim Fov: "..Fov
+FovText.TextColor3 = Color3.new(1,1,1)
+FovText.Parent = Menu
 
--- // DETECTAR FUNÇÃO
-local function GetRole(plr)
-    if not plr.Character then return "Inocente" end
-    local tool = plr.Character:FindFirstChildOfClass("Tool")
-    if tool then
-        local nome = tool.Name:lower()
-        if nome:find("knife") or nome:find("murder") then return "Murder" end
-        if nome:find("gun") or nome:find("revolver") or nome:find("sheriff") or nome:find("pistol") then return "Sheriff" end
+-- // SELECIONAR PARTE (CABEÇA)
+local PartBox = Instance.new("Frame")
+PartBox.Size = UDim2.new(0.3, 0, 0, 30)
+PartBox.Position = UDim2.new(0.2, 0, 0.40, 0)
+PartBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
+PartBox.Parent = Menu
+
+local PartText = Instance.new("TextLabel")
+PartText.Size = UDim2.new(1, -20, 1, 0)
+PartText.Position = UDim2.new(0,10,0,0)
+PartText.BackgroundTransparency = 1
+PartText.Text = "Cabeça"
+PartText.TextColor3 = Color3.new(1,1,1)
+PartText.Parent = PartBox
+
+local Arrow = Instance.new("TextLabel")
+Arrow.Size = UDim2.new(0, 30, 1, 0)
+Arrow.Position = UDim2.new(0.85, 0, 0, 0)
+Arrow.BackgroundTransparency = 1
+Arrow.Text = "▼"
+Arrow.TextColor3 = Color3.new(1,1,1)
+Arrow.Parent = PartBox
+
+-- // MODO DE AIM
+local Mode1 = Instance.new("TextButton")
+Mode1.Size = UDim2.new(0.3, 0, 0, 30)
+Mode1.Position = UDim2.new(0.2, 0, 0.55, 0)
+Mode1.BackgroundColor3 = Color3.fromRGB(40,40,40)
+Mode1.Text = "Ao Olhar"
+Mode1.TextColor3 = Color3.new(1,1,1)
+Mode1.Parent = Menu
+
+local Mode2 = Instance.new("TextButton")
+Mode2.Size = UDim2.new(0.3, 0, 0, 30)
+Mode2.Position = UDim2.new(0.52, 0, 0.55, 0)
+Mode2.BackgroundColor3 = Color3.fromRGB(255,0,0)
+Mode2.Text = "Ao Atirar"
+Mode2.TextColor3 = Color3.new(1,1,1)
+Mode2.Parent = Menu
+
+-- // FUNÇÕES
+
+-- Ligar/Desligar Aimbot
+local On = false
+CheckAim.MouseButton1Click:Connect(function()
+    On = not On
+    if On then
+        CheckAim.BackgroundColor3 = Color3.fromRGB(0,255,0)
+        AimbotEnabled = true
+    else
+        CheckAim.BackgroundColor3 = Color3.fromRGB(40,40,40)
+        AimbotEnabled = false
     end
-    if plr.Backpack then
-        for _,v in pairs(plr.Backpack:GetChildren()) do
-            local nome = v.Name:lower()
-            if nome:find("knife") or nome:find("murder") then return "Murder" end
-            if nome:find("gun") or nome:find("sheriff") then return "Sheriff" end
-        end
-    end
-    return "Inocente"
-end
+end)
 
--- // ESP
-local function CriarESP(plr, cor)
-    if plr == Player or not plr.Character then return end
+-- Mudar Modo
+Mode1.MouseButton1Click:Connect(function()
+    AimMode = "Ao Olhar"
+    Mode1.BackgroundColor3 = Color3.fromRGB(255,0,0)
+    Mode2.BackgroundColor3 = Color3.fromRGB(40,40,40)
+end)
 
-    local hl = plr.Character:FindFirstChild("MG_ESP")
-    if not hl then
-        hl = Instance.new("Highlight")
-        hl.Name = "MG_ESP"
-        hl.Parent = plr.Character
-        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-        hl.FillTransparency = 0.7
-        hl.OutlineTransparency = 0
-        hl.LineThickness = 2
-    end
-    hl.FillColor = cor
-    hl.OutlineColor = cor
-    hl.Enabled = true
+Mode2.MouseButton1Click:Connect(function()
+    AimMode = "Ao Atirar"
+    Mode2.BackgroundColor3 = Color3.fromRGB(255,0,0)
+    Mode1.BackgroundColor3 = Color3.fromRGB(40,40,40)
+end)
 
-    local bg = plr.Character:FindFirstChild("MG_ICON")
-    if not bg then
-        bg = Instance.new("BillboardGui")
-        bg.Name = "MG_ICON"
-        bg.Parent = plr.Character
-        bg.Size = UDim2.new(0,40,0,40)
-        bg.StudsOffset = Vector3.new(0, 3, 0)
-        bg.AlwaysOnTop = true
-
-        local img = Instance.new("ImageLabel")
-        img.Name = "Img"
-        img.Parent = bg
-        img.Size = UDim2.new(1,0,1,0)
-        img.BackgroundTransparency = 1
-        img.Image = "rbxassetid://6011141178"
-    end
-
-    local img = bg:FindFirstChild("Img")
-    if img then
-        img.ImageColor3 = cor
-    end
-
-    bg.Enabled = true
-end
-
-local function RemoverESP(plr)
-    if plr.Character then
-        local hl = plr.Character:FindFirstChild("MG_ESP")
-        if hl then hl.Enabled = false end
-        local bg = plr.Character:FindFirstChild("MG_ICON")
-        if bg then bg.Enabled = false end
-    end
-end
-
--- // ACHAR MURDER (CORRIGIDO)
-local function GetMurder()
-    if not Character or not Character:FindFirstChild("Head") then return nil end
-
-    local alvo = nil
-    local dist = 9999
-
-    for _,plr in pairs(Players:GetPlayers()) do
-        if plr ~= Player and plr.Character and plr.Character:FindFirstChild("Head") then
-            if GetRole(plr) == "Murder" then
-                local d = (Character.Head.Position - plr.Character.Head.Position).Magnitude
-                if d < dist then
-                    dist = d
-                    alvo = plr
-                end
-            end
-        end
-    end
-
-    return alvo
-end
-
--- // SHOOT (CORRIGIDO)
-UIS.InputBegan:Connect(function(input, gp)
-    if gp or not SHOOT_MURDER or not JogoAtivo then return end
+-- Função de achar inimigo
+local function GetClosest()
+    local MaxDistance = Fov
+    local Target = nil
+    local Shortest = math.huge
     
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= Player and v.Character and v.Character:FindFirstChild(AimPart) then
+            local Pos, OnScreen = Camera:WorldToViewportPoint(v.Character[AimPart].Position)
+            local Distance = (Vector2.new(Mouse.X, Mouse.Y) - Vector2.new(Pos.X, Pos.Y)).Magnitude
+            
+            if Distance < Shortest and Distance < MaxDistance and OnScreen then
+                Shortest = Distance
+                Target = v
+            end
+        end
+    end
+    return Target
+end
+
+-- Lógica do Aimbot
+UserInputService.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        local murder = GetMurder()
-        if murder and murder.Character and murder.Character:FindFirstChild("Head") then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, murder.Character.Head.Position)
+        MouseDown = true
+    end
+end)
 
-            local rs = game:GetService("ReplicatedStorage")
-            local remote = rs:FindFirstChild("DefaultServerEvent")
-            if remote then
-                remote:FireServer(murder.Character.Head, Vector3.new())
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        MouseDown = false
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if AimbotEnabled then
+        local Enemy = GetClosest()
+        if Enemy and Enemy.Character and Enemy.Character:FindFirstChild(AimPart) then
+            if AimMode == "Ao Atirar" and MouseDown or AimMode == "Ao Olhar" then
+                Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, Enemy.Character[AimPart].Position), 0.2)
             end
         end
     end
 end)
 
--- // BOTÕES
-AddBtn("🎯 AIMBOT", function(v) AIMBOT = v end)
-AddBtn("🔫 SHOOT MURDER", function(v) SHOOT_MURDER = v end)
-AddBtn("🔴 MURDER", function(v) ESP_M = v end)
-AddBtn("🔵 SHERIFF", function(v) ESP_S = v end)
-AddBtn("🟢 INOCENTE", function(v) ESP_P = v end)
+-- // ARRASTAR MENU
+local Dragging, DragStart, StartPos
 
--- // LOOP
-local ultimaAtualizacao = 0
-RunService.Heartbeat:Connect(function(delta)
-    if not JogoAtivo then return end
-
-    ultimaAtualizacao += delta
-    if ultimaAtualizacao >= 0.1 then
-        ultimaAtualizacao = 0
-        
-        for _,plr in pairs(Players:GetPlayers()) do
-            if plr ~= Player and plr.Character then
-                local cargo = GetRole(plr)
-                if cargo == "Murder" and ESP_M then
-                    CriarESP(plr, Color3.fromRGB(255,0,0))
-                elseif cargo == "Sheriff" and ESP_S then
-                    CriarESP(plr, Color3.fromRGB(0,120,255))
-                elseif cargo == "Inocente" and ESP_P then
-                    CriarESP(plr, Color3.fromRGB(0,255,0))
-                else
-                    RemoverESP(plr)
-                end
-            end
-        end
-    end
-
-    if AIMBOT and Character and Character:FindFirstChild("Head") then
-        local murder = GetMurder()
-        if murder and murder.Character and murder.Character:FindFirstChild("Head") then
-            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, murder.Character.Head.Position), 0.2)
-        end
+Menu.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        Dragging = true
+        DragStart = input.Position
+        StartPos = Menu.Position
     end
 end)
 
-print("✅ MG HUB - VERSÃO CORRIGIDA SEM ERROS")
+UserInputService.InputChanged:Connect(function(input)
+    if Dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local Delta = input.Position - DragStart
+        Menu.Position = UDim2.new(StartPos.X.Scale, StartPos.X.Offset + Delta.X, StartPos.Y.Scale, StartPos.Y.Offset + Delta.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        Dragging = false
+    end
+end)
+
+print("✅ FFH4X SCRIPT CARREGADO COM SUCESSO!")
