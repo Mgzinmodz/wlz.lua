@@ -1,321 +1,334 @@
---// SERVICES
+-- // SERVICES
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
-local Camera = game:GetService("Workspace").CurrentCamera
+local Camera = workspace.CurrentCamera
 local Player = Players.LocalPlayer
 
---// VARIAVEIS GLOBAIS
-getgenv().Config = getgenv().Config or {
-    Tema = "Verde",
-    Opacidade = 1,
-    Tamanho = 1,
-    AutoIniciar = true
-}
+-- // VARS
+local Enabled = false
+local Fov = 300
+local Mode = "Ao Olhar"
+local MouseDown = false
+local EspEnabled = false
+local ShowFovCircle = false
 
---// CRIA GUI
-local Gui = Instance.new("ScreenGui")
-Gui.Name = "MG_HUB_PRO"
-Gui.Parent = game:GetService("CoreGui")
-Gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+-- // GUI
+local Gui = Instance.new("ScreenGui", game.CoreGui)
+Gui.Name = "MG_FFH4X"
 Gui.ResetOnSpawn = false
 
---// =============================================
---// 🔘 BOTÃO FLUTUANTE
---// =============================================
-local FloatBtn = Instance.new("TextButton")
-FloatBtn.Name = "FloatButton"
-FloatBtn.Size = UDim2.new(0,55,0,55)
-FloatBtn.Position = UDim2.new(0,20,0.5,0)
-FloatBtn.BackgroundColor3 = Color3.fromRGB(10,10,10)
-FloatBtn.Text = "MG"
-FloatBtn.TextColor3 = Color3.fromRGB(0,255,100)
-FloatBtn.Font = Enum.Font.GothamBlack
-FloatBtn.TextSize = 20
-FloatBtn.ClipsDescendants = true
-FloatBtn.Parent = Gui
+-- // CIRCULO FOV
+local FovCircle = Instance.new("ImageLabel", Gui)
+FovCircle.Name = "CircleFOV"
+FovCircle.Size = UDim2.new(0, Fov*2, 0, Fov*2)
+FovCircle.Position = UDim2.new(0.5, -Fov, 0.5, -Fov)
+FovCircle.BackgroundTransparency = 1
+FovCircle.Image = "rbxassetid://4999832484"
+FovCircle.ImageColor3 = Color3.fromRGB(255,0,0)
+FovCircle.ImageTransparency = 0.5
+FovCircle.Visible = false
 
--- Borda e Glow
-Instance.new("UICorner", FloatBtn).CornerRadius = UDim.new(1,0)
-local StrokeBtn = Instance.new("UIStroke", FloatBtn)
-StrokeBtn.Color = Color3.fromRGB(0,255,100)
-StrokeBtn.Thickness = 1.5
-StrokeBtn.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+-- // MENU
+local Menu = Instance.new("Frame", Gui)
+Menu.Size = UDim2.new(0,420,0,380)
+Menu.Position = UDim2.new(0.5,-210,0.5,-190)
+Menu.BackgroundColor3 = Color3.fromRGB(12,12,12)
 
--- Animação Glow
-coroutine.wrap(function()
-    while wait(1) do
-        TweenService:Create(StrokeBtn, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.3}):Play()
-        wait(1.2)
-        TweenService:Create(StrokeBtn, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0}):Play()
-    end
-end)()
+Instance.new("UICorner", Menu).CornerRadius = UDim.new(0,6)
 
---// FUNÇÃO ARRASTAR BOTÃO
-local function MakeDraggable(object)
-    local dragging, startPos, startInput = false, nil, nil
-    object.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            startInput = input.Position
-            startPos = object.Position
-        end
-    end)
-    UIS.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - startInput
-            object.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-    UIS.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
-    end)
-end
-MakeDraggable(FloatBtn)
+local Stroke = Instance.new("UIStroke", Menu)
+Stroke.Color = Color3.fromRGB(255,0,0)
+Stroke.Thickness = 2
 
---// =============================================
---// 📦 MENU PRINCIPAL
---// =============================================
-local Menu = Instance.new("Frame")
-Menu.Name = "MainMenu"
-Menu.Size = UDim2.new(0,380,0,480)
-Menu.Position = UDim2.new(0,90,0.5,-240)
-Menu.BackgroundColor3 = Color3.fromRGB(15,15,15)
-Menu.Visible = false
-Menu.Parent = Gui
-Instance.new("UICorner", Menu).CornerRadius = UDim.new(0,12)
-local StrokeMenu = Instance.new("UIStroke", Menu)
-StrokeMenu.Color = Color3.fromRGB(0,255,100)
-StrokeMenu.Thickness = 2
+-- // TOP BAR
+local Top = Instance.new("Frame", Menu)
+Top.Size = UDim2.new(1,0,0,35)
+Top.BackgroundColor3 = Color3.fromRGB(180,0,0)
 
--- Sombra Interna
-local UIStroke = Instance.new("UIStroke", Menu)
-UIStroke.Thickness = 1
-UIStroke.Color = Color3.new(0,0,0)
-
---// TOPO
-local TopBar = Instance.new("Frame")
-TopBar.Parent = Menu
-TopBar.Size = UDim2.new(1,0,0,35)
-TopBar.BackgroundColor3 = Color3.fromRGB(10,10,10)
-TopBar.Position = UDim2.new(0,0,0,0)
-Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0,12)
-
-local Title = Instance.new("TextLabel")
-Title.Parent = TopBar
-Title.Size = UDim2.new(1,-20,1,0)
-Title.Position = UDim2.new(0,10,0,0)
+local Title = Instance.new("TextLabel", Top)
+Title.Size = UDim2.new(1,0,1,0)
 Title.BackgroundTransparency = 1
-Title.Text = "MG HUB ✦ FREE FIRE STYLE"
-Title.TextColor3 = Color3.fromRGB(0,255,100)
+Title.Text = "FFH4X @MG - STYLE"
+Title.TextColor3 = Color3.new(1,1,1)
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 14
+Title.TextSize = 15
 
--- BOTAO FECHAR
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Parent = TopBar
-CloseBtn.Size = UDim2.new(0,30,0,30)
-CloseBtn.Position = UDim2.new(1,-35,0,2)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(255,50,50)
-CloseBtn.Text = "X"
-CloseBtn.TextColor3 = Color3.new(1,1,1)
-CloseBtn.Font = Enum.Font.GothamBold
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(1,0)
+-- // CHECKBOX AIMBOT
+local Box = Instance.new("Frame", Menu)
+Box.Size = UDim2.new(0,28,0,28)
+Box.Position = UDim2.new(0.05,0,0.15,0)
+Box.BackgroundColor3 = Color3.fromRGB(40,40,40)
+Instance.new("UICorner", Box).CornerRadius = UDim.new(0,4)
 
---// =============================================
---// 📑 LAYOUT DE ABAS E CONTEUDO
---// =============================================
-local SideBar = Instance.new("Frame")
-SideBar.Parent = Menu
-SideBar.Size = UDim2.new(0,50,1,-40)
-SideBar.Position = UDim2.new(0,5,0,38)
-SideBar.BackgroundColor3 = Color3.fromRGB(20,20,20)
-Instance.new("UICorner", SideBar).CornerRadius = UDim.new(0,10)
+local Check = Instance.new("Frame", Box)
+Check.Size = UDim2.new(1,0,1,0)
+Check.BackgroundColor3 = Color3.fromRGB(0,200,0)
+Check.Visible = false
+Instance.new("UICorner", Check).CornerRadius = UDim.new(0,4)
 
-local ContentArea = Instance.new("Frame")
-ContentArea.Parent = Menu
-ContentArea.Size = UDim2.new(1,-70,1,-45)
-ContentArea.Position = UDim2.new(0,60,0,40)
-ContentArea.BackgroundTransparency = 1
+local BtnBox = Instance.new("TextButton", Box)
+BtnBox.Size = UDim2.new(1,0,1,0)
+BtnBox.Text = ""
+BtnBox.BackgroundTransparency = 1
 
---// =============================================
---// 🔘 BOTOES DAS ABAS
---// =============================================
-local BtnAim = Instance.new("TextButton")
-BtnAim.Parent = SideBar
-BtnAim.Size = UDim2.new(0.9,0,0,40)
-BtnAim.Position = UDim2.new(0.05,0,0,10)
-BtnAim.BackgroundColor3 = Color3.fromRGB(0,255,100)
-BtnAim.Text = "🎯"
-BtnAim.TextColor3 = Color3.new(0,0,0)
-BtnAim.Font = Enum.Font.GothamBold
-Instance.new("UICorner", BtnAim).CornerRadius = UDim.new(0,8)
+local Txt = Instance.new("TextLabel", Menu)
+Txt.Position = UDim2.new(0.15,0,0.15,0)
+Txt.Size = UDim2.new(0,200,0,30)
+Txt.Text = "Aimbot Rage"
+Txt.TextColor3 = Color3.new(1,1,1)
+Txt.BackgroundTransparency = 1
+Txt.Font = Enum.Font.GothamBold
+Txt.TextSize = 18
 
-local BtnVis = Instance.new("TextButton")
-BtnVis.Parent = SideBar
-BtnVis.Size = UDim2.new(0.9,0,0,40)
-BtnVis.Position = UDim2.new(0.05,0,0,60)
-BtnVis.BackgroundColor3 = Color3.fromRGB(30,30,30)
-BtnVis.Text = "👁️"
-BtnVis.TextColor3 = Color3.new(1,1,1)
-BtnVis.Font = Enum.Font.GothamBold
-Instance.new("UICorner", BtnVis).CornerRadius = UDim.new(0,8)
+-- // CHECKBOX ESP
+local BoxEsp = Instance.new("Frame", Menu)
+BoxEsp.Size = UDim2.new(0,28,0,28)
+BoxEsp.Position = UDim2.new(0.05,0,0.25,0)
+BoxEsp.BackgroundColor3 = Color3.fromRGB(40,40,40)
+Instance.new("UICorner", BoxEsp).CornerRadius = UDim.new(0,4)
 
-local BtnConf = Instance.new("TextButton")
-BtnConf.Parent = SideBar
-BtnConf.Size = UDim2.new(0.9,0,0,40)
-BtnConf.Position = UDim2.new(0.05,0,0,110)
-BtnConf.BackgroundColor3 = Color3.fromRGB(30,30,30)
-BtnConf.Text = "⚙️"
-BtnConf.TextColor3 = Color3.new(1,1,1)
-BtnConf.Font = Enum.Font.GothamBold
-Instance.new("UICorner", BtnConf).CornerRadius = UDim.new(0,8)
+local CheckEsp = Instance.new("Frame", BoxEsp)
+CheckEsp.Size = UDim2.new(1,0,1,0)
+CheckEsp.BackgroundColor3 = Color3.fromRGB(0,100,255)
+CheckEsp.Visible = false
+Instance.new("UICorner", CheckEsp).CornerRadius = UDim.new(0,4)
 
---// =============================================
---// 🎯 ABA AIM
---// =============================================
-local TabAim = Instance.new("Frame")
-TabAim.Parent = ContentArea
-TabAim.Size = UDim2.new(1,0,1,0)
-TabAim.BackgroundTransparency = 1
+local BtnBoxEsp = Instance.new("TextButton", BoxEsp)
+BtnBoxEsp.Size = UDim2.new(1,0,1,0)
+BtnBoxEsp.Text = ""
+BtnBoxEsp.BackgroundTransparency = 1
 
--- Titulo
-local TitleAim = Instance.new("TextLabel")
-TitleAim.Parent = TabAim
-TitleAim.Size = UDim2.new(1,0,0,25)
-TitleAim.Position = UDim2.new(0,0,0,0)
-TitleAim.BackgroundTransparency = 1
-TitleAim.Text = "ASSISTÊNCIA DE MIRA"
-TitleAim.TextColor3 = Color3.fromRGB(0,255,100)
-TitleAim.Font = Enum.Font.GothamBold
-TitleAim.TextSize = 16
+local TxtEsp = Instance.new("TextLabel", Menu)
+TxtEsp.Position = UDim2.new(0.15,0,0.25,0)
+TxtEsp.Size = UDim2.new(0,200,0,30)
+TxtEsp.Text = "ESP Inimigos"
+TxtEsp.TextColor3 = Color3.new(1,1,1)
+TxtEsp.BackgroundTransparency = 1
+TxtEsp.Font = Enum.Font.GothamBold
+TxtEsp.TextSize = 18
 
--- BOTAO AIMBOT
-local AimToggle = Instance.new("TextButton")
-AimToggle.Parent = TabAim
-AimToggle.Size = UDim2.new(1,0,0,40)
-AimToggle.Position = UDim2.new(0,0,0,35)
-AimToggle.BackgroundColor3 = Color3.fromRGB(35,35,35)
-AimToggle.Text = "▶ ATIVAR AIMBOT"
-AimToggle.TextColor3 = Color3.new(1,1,1)
-AimToggle.Font = Enum.Font.GothamBold
-Instance.new("UICorner", AimToggle).CornerRadius = UDim.new(0,8)
+-- // CHECKBOX EXIBIR FOV
+local BoxFov = Instance.new("Frame", Menu)
+BoxFov.Size = UDim2.new(0,28,0,28)
+BoxFov.Position = UDim2.new(0.05,0,0.35,0)
+BoxFov.BackgroundColor3 = Color3.fromRGB(40,40,40)
+Instance.new("UICorner", BoxFov).CornerRadius = UDim.new(0,4)
 
--- MODO DE MIRA
-local ModeText = Instance.new("TextLabel")
-ModeText.Parent = TabAim
-ModeText.Size = UDim2.new(1,0,0,20)
-ModeText.Position = UDim2.new(0,0,0,85)
-ModeText.BackgroundTransparency = 1
-ModeText.Text = "MODO DE ATIVAÇÃO"
-ModeText.TextColor3 = Color3.fromRGB(200,200,200)
-ModeText.Font = Enum.Font.Gotham
+local CheckFov = Instance.new("Frame", BoxFov)
+CheckFov.Size = UDim2.new(1,0,1,0)
+CheckFov.BackgroundColor3 = Color3.fromRGB(255,255,0)
+CheckFov.Visible = false
+Instance.new("UICorner", CheckFov).CornerRadius = UDim.new(0,4)
 
-local Mode1 = Instance.new("TextButton")
-Mode1.Parent = TabAim
-Mode1.Size = UDim2.new(0.48,0,0,35)
-Mode1.Position = UDim2.new(0,0,0,110)
-Mode1.BackgroundColor3 = Color3.fromRGB(0,180,80)
-Mode1.Text = "AO OLHAR"
-Mode1.TextColor3 = Color3.new(0,0,0)
-Instance.new("UICorner", Mode1).CornerRadius = UDim.new(0,8)
+local BtnBoxFov = Instance.new("TextButton", BoxFov)
+BtnBoxFov.Size = UDim2.new(1,0,1,0)
+BtnBoxFov.Text = ""
+BtnBoxFov.BackgroundTransparency = 1
 
-local Mode2 = Instance.new("TextButton")
-Mode2.Parent = TabAim
-Mode2.Size = UDim2.new(0.48,0,0,35)
-Mode2.Position = UDim2.new(0.52,0,0,110)
-Mode2.BackgroundColor3 = Color3.fromRGB(40,40,40)
-Mode2.Text = "AO ATIRAR"
-Mode2.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", Mode2).CornerRadius = UDim.new(0,8)
+local TxtFov = Instance.new("TextLabel", Menu)
+TxtFov.Position = UDim2.new(0.15,0,0.35,0)
+TxtFov.Size = UDim2.new(0,200,0,30)
+TxtFov.Text = "Exibir FOV"
+TxtFov.TextColor3 = Color3.new(1,1,1)
+TxtFov.BackgroundTransparency = 1
+TxtFov.Font = Enum.Font.GothamBold
+TxtFov.TextSize = 18
 
--- SLIDER FOV
-local FovTitle = Instance.new("TextLabel")
-FovTitle.Parent = TabAim
-FovTitle.Size = UDim2.new(1,0,0,20)
-FovTitle.Position = UDim2.new(0,0,0,160)
-FovTitle.BackgroundTransparency = 1
-FovTitle.Text = "CAMPO DE VISÃO (FOV): 250"
-FovTitle.TextColor3 = Color3.fromRGB(200,200,200)
-FovTitle.Font = Enum.Font.Gotham
+-- // TOGGLES
+BtnBox.MouseButton1Click:Connect(function()
+    Enabled = not Enabled
+    Check.Visible = Enabled
+end)
 
-local FovBack = Instance.new("Frame")
-FovBack.Parent = TabAim
-FovBack.Size = UDim2.new(1,0,0,12)
-FovBack.Position = UDim2.new(0,0,0,185)
-FovBack.BackgroundColor3 = Color3.fromRGB(40,40,40)
-Instance.new("UICorner", FovBack).CornerRadius = UDim.new(1,0)
+BtnBoxEsp.MouseButton1Click:Connect(function()
+    EspEnabled = not EspEnabled
+    CheckEsp.Visible = EspEnabled
+end)
 
-local FovFill = Instance.new("Frame")
-FovFill.Parent = FovBack
-FovFill.Size = UDim2.new(0.5,0,1,0)
-FovFill.BackgroundColor3 = Color3.fromRGB(0,255,100)
-Instance.new("UICorner", FovFill).CornerRadius = UDim.new(1,0)
+BtnBoxFov.MouseButton1Click:Connect(function()
+    ShowFovCircle = not ShowFovCircle
+    CheckFov.Visible = ShowFovCircle
+    FovCircle.Visible = ShowFovCircle and Enabled
+end)
 
--- CIRCULO FOV
-local CircleFOV = Instance.new("ImageLabel")
-CircleFOV.Name = "CircleFOV"
-CircleFOV.Parent = Gui
-CircleFOV.Size = UDim2.new(0,500,0,500)
-CircleFOV.Position = UDim2.new(0.5,-250,0.5,-250)
-CircleFOV.BackgroundTransparency = 1
-CircleFOV.Image = "rbxassetid://4999832484"
-CircleFOV.ImageColor3 = Color3.fromRGB(0,255,100)
-CircleFOV.ImageTransparency = 0.4
-CircleFOV.Visible = false
+-- // FOV BAR
+local BarBack = Instance.new("Frame", Menu)
+BarBack.Size = UDim2.new(0.6,0,0,8)
+BarBack.Position = UDim2.new(0.2,0,0.48,0)
+BarBack.BackgroundColor3 = Color3.fromRGB(40,40,40)
+Instance.new("UICorner", BarBack)
 
--- BOTAO MOSTRAR CIRCULO
-local ShowCircle = Instance.new("TextButton")
-ShowCircle.Parent = TabAim
-ShowCircle.Size = UDim2.new(1,0,0,35)
-ShowCircle.Position = UDim2.new(0,0,0,210)
-ShowCircle.BackgroundColor3 = Color3.fromRGB(35,35,35)
-ShowCircle.Text = "👁️ EXIBIR CIRCULO FOV"
-ShowCircle.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", ShowCircle).CornerRadius = UDim.new(0,8)
+local BarFill = Instance.new("Frame", BarBack)
+BarFill.Size = UDim2.new(0.5,0,1,0)
+BarFill.BackgroundColor3 = Color3.fromRGB(255,0,0)
+Instance.new("UICorner", BarFill)
 
---// =============================================
---// 👁️ ABA VISUAL
---// =============================================
-local TabVis = Instance.new("Frame")
-TabVis.Parent = ContentArea
-TabVis.Size = UDim2.new(1,0,1,0)
-TabVis.BackgroundTransparency = 1
-TabVis.Visible = false
+local Drag = false
 
-local TitleVis = Instance.new("TextLabel")
-TitleVis.Parent = TabVis
-TitleVis.Size = UDim2.new(1,0,0,25)
-TitleVis.Position = UDim2.new(0,0,0,0)
-TitleVis.BackgroundTransparency = 1
-TitleVis.Text = "ELEMENTOS VISUAIS"
-TitleVis.TextColor3 = Color3.fromRGB(0,255,100)
-TitleVis.Font = Enum.Font.GothamBold
-TitleVis.TextSize = 16
+BarBack.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        Drag = true
+    end
+end)
 
-local EspBtn = Instance.new("TextButton")
-EspBtn.Parent = TabVis
-EspBtn.Size = UDim2.new(1,0,0,40)
-EspBtn.Position = UDim2.new(0,0,0,35)
-EspBtn.BackgroundColor3 = Color3.fromRGB(35,35,35)
-EspBtn.Text = "🔴 DESTACAR JOGADORES"
-EspBtn.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", EspBtn).CornerRadius = UDim.new(0,8)
+UIS.InputEnded:Connect(function()
+    Drag = false
+end)
 
-local DistBtn = Instance.new("TextButton")
-DistBtn.Parent = TabVis
-DistBtn.Size = UDim2.new(1,0,0,40)
-DistBtn.Position = UDim2.new(0,0,0,85)
-DistBtn.BackgroundColor3 = Color3.fromRGB(35,35,35)
-DistBtn.Text = "📏 EXIBIR DISTÂNCIA"
-DistBtn.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", DistBtn).CornerRadius = UDim.new(0,8)
+UIS.InputChanged:Connect(function(i)
+    if Drag then
+        local X = i.Position.X
+        local Start = BarBack.AbsolutePosition.X
+        local Size = BarBack.AbsoluteSize.X
+        local Percent = math.clamp((X - Start)/Size,0,1)
 
-local LineBtn = Instance.new("TextButton")
-LineBtn.Parent = TabVis
-LineBtn.Size = UDim2.new(1,0,0,40)
-LineBtn.Position = UDim2.new(0,0,0,135)
-LineBtn
+        BarFill:TweenSize(UDim2.new(Percent,0,1,0),"Out","Quad",0.05,true)
+
+        Fov = math.floor(Percent * 500)
+        FovCircle.Size = UDim2.new(0, Fov*2, 0, Fov*2)
+        FovCircle.Position = UDim2.new(0.5, -Fov, 0.5, -Fov)
+    end
+end)
+
+-- // FOV TEXT
+local FovTxt = Instance.new("TextLabel", Menu)
+FovTxt.Position = UDim2.new(0.8,0,0.45,0)
+FovTxt.Size = UDim2.new(0,100,0,20)
+FovTxt.Text = "FOV: "..Fov
+FovTxt.TextColor3 = Color3.new(1,1,1)
+FovTxt.BackgroundTransparency = 1
+FovTxt.Font = Enum.Font.GothamBold
+
+RunService.RenderStepped:Connect(function()
+    FovTxt.Text = "FOV: "..Fov
+end)
+
+-- // BOTÕES
+local function MakeBtn(text,pos)
+    local b = Instance.new("TextButton", Menu)
+    b.Size = UDim2.new(0.35,0,0,35)
+    b.Position = pos
+    b.Text = text
+    b.Font = Enum.Font.GothamBold
+    b.TextColor3 = Color3.new(1,1,1)
+    b.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    Instance.new("UICorner", b)
+    return b
+end
+
+local Btn1 = MakeBtn("Ao Olhar",UDim2.new(0.2,0,0.60,0))
+local Btn2 = MakeBtn("Ao Atirar",UDim2.new(0.57,0,0.60,0))
+
+Btn1.BackgroundColor3 = Color3.fromRGB(255,0,0)
+
+Btn1.MouseButton1Click:Connect(function()
+    Mode = "Ao Olhar"
+    Btn1.BackgroundColor3 = Color3.fromRGB(255,0,0)
+    Btn2.BackgroundColor3 = Color3.fromRGB(40,40,40)
+end)
+
+Btn2.MouseButton1Click:Connect(function()
+    Mode = "Ao Atirar"
+    Btn2.BackgroundColor3 = Color3.fromRGB(255,0,0)
+    Btn1.BackgroundColor3 = Color3.fromRGB(40,40,40)
+end)
+
+-- // DRAG MENU
+local dragging = false
+local start, pos
+
+Menu.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        start = i.Position
+        pos = Menu.Position
+    end
+end)
+
+UIS.InputChanged:Connect(function(i)
+    if dragging then
+        local delta = i.Position - start
+        Menu.Position = UDim2.new(pos.X.Scale,pos.X.Offset+delta.X,pos.Y.Scale,pos.Y.Offset+delta.Y)
+    end
+end)
+
+UIS.InputEnded:Connect(function()
+    dragging = false
+end)
+
+-- // INPUT
+UIS.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        MouseDown = true
+    end
+end)
+
+UIS.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        MouseDown = false
+    end
+end)
+
+-- // FUNÇÕES
+
+-- AIMBOT
+local function GetClosest()
+    local target, dist = nil, math.huge
+
+    for _,v in pairs(Players:GetPlayers()) do
+        if v ~= Player and v.Character and v.Character:FindFirstChild("Head") then
+            local pos, vis = Camera:WorldToViewportPoint(v.Character.Head.Position)
+            local mag = (Vector2.new(pos.X,pos.Y) - Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y/2)).Magnitude
+
+            if mag < dist and mag < Fov and vis then
+                dist = mag
+                target = v
+            end
+        end
+    end
+
+    return target
+end
+
+-- ESP
+local function CreateEsp(character)
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "MG_ESP"
+    highlight.Adornee = character
+    highlight.Parent = character
+    highlight.FillColor = Color3.fromRGB(255,0,0)
+    highlight.OutlineColor = Color3.new(1,1,1)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+    return highlight
+end
+
+RunService.RenderStepped:Connect(function()
+    if Enabled then
+        local t = GetClosest()
+        if t and t.Character and t.Character:FindFirstChild("Head") then
+            if Mode == "Ao Olhar" or (Mode == "Ao Atirar" and MouseDown) then
+                Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, t.Character.Head.Position), 0.2)
+            end
+        end
+    end
+
+    -- ESP LOGIC
+    for _,v in pairs(Players:GetPlayers()) do
+        if v ~= Player and v.Character then
+            if EspEnabled then
+                if not v.Character:FindFirstChild("MG_ESP") then
+                    CreateEsp(v.Character)
+                end
+            else
+                if v.Character:FindFirstChild("MG_ESP") then
+                    v.Character.MG_ESP:Destroy()
+                end
+            end
+        end
+    end
+end)
+
+print("✅ FFH4X STYLE LOADED - MG MODZ")
